@@ -409,13 +409,37 @@
               <div class="event-title">
                 ${isUpcoming ? '⏰' : '✓'} ${event.destination}
               </div>
-              
+
               <div class="event-detail">
-                <span class="label">도착 시간:</span>
-                <span class="value">${CommonUtils.formatDateTime(arrivalTime)}</span>
+                <span class="label">🎯 도착 시간:</span>
+                <span class="value" style="font-weight: 600; color: #dc3545;">${CommonUtils.formatDateTime(arrivalTime)}</span>
               </div>
-              
+
               ${event.prepStartTime ? `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; border-radius: 12px; margin: 12px 0; color: white;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                      <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">⏱️ 준비 시작</div>
+                      <div style="font-size: 20px; font-weight: 700;">${CommonUtils.formatTime(event.prepStartTime)}</div>
+                    </div>
+                    <div style="width: 2px; height: 40px; background: rgba(255,255,255,0.3); margin: 0 16px;"></div>
+                    <div style="flex: 1;">
+                      <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">🚗 출발 예정</div>
+                      <div style="font-size: 20px; font-weight: 700;">${CommonUtils.formatTime(event.expectedDepartureTime)}</div>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 8px; font-size: 12px;">
+                    <div style="flex: 1; background: rgba(255,255,255,0.2); padding: 8px; border-radius: 6px; text-align: center;">
+                      <div style="opacity: 0.9;">준비시간</div>
+                      <div style="font-weight: 600; margin-top: 2px;">${event.prepTime || 0}분</div>
+                    </div>
+                    <div style="flex: 1; background: rgba(255,255,255,0.2); padding: 8px; border-radius: 6px; text-align: center;">
+                      <div style="opacity: 0.9;">이동시간</div>
+                      <div style="font-weight: 600; margin-top: 2px;">${event.travelTime || 0}분</div>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="timeline">
                   <div class="timeline-item">
                     <div class="timeline-icon ${new Date() >= new Date(event.prepStartTime) ? 'active' : ''}"></div>
@@ -430,13 +454,23 @@
                     <div class="timeline-text">도착 예정: ${CommonUtils.formatTime(event.arrivalTime)}</div>
                   </div>
                 </div>
-              ` : ''}
-  
+              ` : `
+                <div style="background: #fff3cd; padding: 16px; border-radius: 12px; margin: 12px 0; border-left: 4px solid #ffc107;">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="font-size: 32px;">⚠️</div>
+                    <div>
+                      <div style="font-weight: 600; color: #856404; margin-bottom: 4px;">출발지 정보가 필요합니다</div>
+                      <div style="font-size: 13px; color: #856404; opacity: 0.8;">출발지와 준비시간을 입력하면 정확한 준비시작 시각과 출발 예정 시각을 알려드립니다.</div>
+                    </div>
+                  </div>
+                </div>
+              `}
+
               <div class="event-detail" style="margin-top: 12px;">
                 <span class="label">출석 상태:</span>
                 <span class="status ${statusClass}">${statusText}</span>
               </div>
-              
+
               <div class="event-actions">
                 ${!event.prepStartTime ? `
                   <button onclick="UserApp.openEventModal('${event.eventId}', ${event.destinationLat}, ${event.destinationLng})" class="btn-primary full-width">
