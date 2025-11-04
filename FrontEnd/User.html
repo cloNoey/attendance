@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>출석 관리 시스템</title>
+  
+  <?!= include('CommonStyles'); ?>
+  <?!= include('UserStyles'); ?>
+</head>
+<body>
+  <!-- 로그인 화면 -->
+  <div class="login-container" id="loginContainer">
+    <div class="login-card">
+      <div class="login-header">
+        <h1>📍 출석 관리 시스템</h1>
+        <p>사용자 ID를 입력하여 로그인하세요</p>
+      </div>
+      
+      <form id="loginForm" onsubmit="UserApp.login(event)">
+        <div class="form-group">
+          <label for="userIdInput">사용자 ID</label>
+          <input 
+            type="text" 
+            id="userIdInput" 
+            required 
+            placeholder="예: user1"
+            autocomplete="off"
+          >
+        </div>
+        
+        <button type="submit" class="btn-primary full-width">
+          로그인
+        </button>
+      </form>
+      
+      <div class="login-info">
+        <p>💡 관리자가 부여한 사용자 ID를 입력하세요</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 화면 -->
+  <div class="container" id="mainContainer" style="display: none;">
+    <header class="page-header">
+      <div class="header-left">
+        <h1>📍 내 일정 관리</h1>
+      </div>
+      <div class="header-right">
+        <div class="user-info" id="userInfo">
+          <span id="userName">사용자</span>
+        </div>
+        <button class="btn-logout" onclick="UserApp.logout()">
+          🚪 로그아웃
+        </button>
+      </div>
+    </header>
+    
+    <div class="location-status" id="locationStatus">
+      📡 위치 정보 수집 중...
+    </div>
+    
+    <div class="events-container">
+      <div class="section-header">
+        <h2>다가오는 일정</h2>
+        <button class="btn-refresh" onclick="UserApp.loadEvents()">
+          🔄 새로고침
+        </button>
+      </div>
+      
+      <div id="eventsList" class="events-list">
+        <div class="loading">일정을 불러오는 중...</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 이벤트 상세 모달 -->
+  <div class="modal" id="eventModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📝 출발지 정보 입력</h2>
+        <button class="btn-close" onclick="UserApp.closeModal()">✕</button>
+      </div>
+      
+      <form id="eventForm" onsubmit="UserApp.submitEventDetails(event)">
+        <input type="hidden" id="eventId">
+        <input type="hidden" id="destinationLat">
+        <input type="hidden" id="destinationLng">
+        
+        <div class="form-group">
+          <label for="departureLocation">출발지</label>
+          <input 
+            type="text" 
+            id="departureLocation" 
+            required 
+            placeholder="예: 집, 회사 등"
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="prepTime">예상 준비시간 (분)</label>
+          <input 
+            type="number" 
+            id="prepTime" 
+            required 
+            min="1" 
+            placeholder="30"
+          >
+        </div>
+        
+        <div class="form-group">
+          <label>현재 위치 사용</label>
+          <button 
+            type="button" 
+            class="btn-secondary full-width"
+            onclick="UserApp.useCurrentLocation()"
+          >
+            📍 현재 위치로 설정
+          </button>
+        </div>
+        
+        <input type="hidden" id="departureLat">
+        <input type="hidden" id="departureLng">
+        
+        <button type="submit" class="btn-primary full-width">
+          저장하기
+        </button>
+        
+        <div class="error" id="formError"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 경로 상세 모달 -->
+  <div class="modal" id="routeModal">
+    <div class="modal-content" style="max-width: 600px;">
+      <div id="routeModalBody">
+        <!-- 동적으로 채워짐 -->
+      </div>
+    </div>
+  </div>
+
+  <?!= include('CommonUtils'); ?>
+  <?!= include('UserScripts'); ?>
+</body>
+</html>

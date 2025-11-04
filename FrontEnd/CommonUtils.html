@@ -1,0 +1,114 @@
+<script>
+    /**
+     * 공통 유틸리티 함수들
+     */
+    const CommonUtils = {
+      /**
+       * 날짜 포맷팅
+       */
+      formatDateTime: function(date) {
+        if (!date) return '-';
+        
+        const d = new Date(date);
+        const month = d.getMonth() + 1;
+        const day = d.getDate();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        
+        return `${month}월 ${day}일 ${hours}:${minutes}`;
+      },
+      
+      /**
+       * 날짜만 포맷팅
+       */
+      formatDate: function(date) {
+        if (!date) return '-';
+        
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}`;
+      },
+      
+      /**
+       * 시간만 포맷팅
+       */
+      formatTime: function(date) {
+        if (!date) return '-';
+        
+        const d = new Date(date);
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        
+        return `${hours}:${minutes}`;
+      },
+      
+      /**
+       * 상태 텍스트 변환
+       */
+      getStatusText: function(status) {
+        const statusMap = {
+          'Pending': '대기중',
+          'Present': '출석',
+          'Late': '지각',
+          'Absent': '결석'
+        };
+        return statusMap[status] || status;
+      },
+      
+      /**
+       * 상태 클래스 가져오기
+       */
+      getStatusClass: function(status) {
+        return status ? status.toLowerCase() : 'pending';
+      },
+      
+      /**
+       * 에러 메시지 표시
+       */
+      showError: function(elementId, message) {
+        const errorEl = document.getElementById(elementId);
+        if (errorEl) {
+          errorEl.textContent = message;
+          errorEl.classList.add('show');
+          
+          setTimeout(() => {
+            errorEl.classList.remove('show');
+          }, 5000);
+        }
+      },
+      
+      /**
+       * 성공 알림
+       */
+      showSuccess: function(message) {
+        alert('✅ ' + message);
+      },
+      
+      /**
+       * 에러 알림
+       */
+      showErrorAlert: function(message) {
+        alert('❌ ' + message);
+      },
+      
+      /**
+       * 로딩 표시
+       */
+      showLoading: function(elementId) {
+        const el = document.getElementById(elementId);
+        if (el) {
+          el.innerHTML = '<div class="loading">로딩 중...</div>';
+        }
+      },
+      
+      /**
+       * 현재 시간 가져오기
+       */
+      getCurrentTime: function() {
+        return this.formatTime(new Date());
+      }
+    };
+  </script>

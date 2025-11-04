@@ -1,0 +1,356 @@
+<style>
+    /* 사용자 페이지 전용 스타일 */
+    
+    /* 로그인 화면 */
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+    }
+    
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .login-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    
+    .login-header h1 {
+      font-size: 28px;
+      color: #2c3e50;
+      margin-bottom: 8px;
+    }
+    
+    .login-header p {
+      font-size: 14px;
+      color: #6c757d;
+    }
+    
+    .login-info {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .login-info p {
+      font-size: 13px;
+      color: #495057;
+      margin: 0;
+    }
+    
+    /* 로그아웃 버튼 */
+    .btn-logout {
+      background: #dc3545;
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-logout:hover {
+      background: #c82333;
+      transform: translateY(-1px);
+    }
+    
+    .user-info {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .user-info::before {
+      content: '👤';
+    }
+    
+    /* 위치 상태 */
+    .location-status {
+      padding: 16px;
+      background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+      border-left: 4px solid #00acc1;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: #006064;
+      font-weight: 500;
+    }
+    
+    .location-status.active {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      border-left-color: #43a047;
+      color: #1b5e20;
+    }
+    
+    .location-status.error {
+      background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+      border-left-color: #e53935;
+      color: #b71c1c;
+    }
+    
+    /* 이벤트 컨테이너 */
+    .events-container {
+      margin-top: 24px;
+    }
+    
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .events-list {
+      display: grid;
+      gap: 16px;
+    }
+    
+    /* 이벤트 카드 */
+    .event-card {
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      padding: 20px;
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .event-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.1);
+      transform: translateY(-2px);
+    }
+    
+    .event-card.urgent {
+      border-color: #ffc107;
+      background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+    }
+    
+    .event-card.completed {
+      opacity: 0.7;
+    }
+    
+    .event-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .event-detail {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .event-detail:last-child {
+      margin-bottom: 0;
+    }
+    
+    .label {
+      color: #6c757d;
+      font-weight: 500;
+    }
+    
+    .value {
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .event-actions {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .event-actions button {
+      width: 100%;
+    }
+    
+    /* 타임라인 표시 */
+    .timeline {
+      margin-top: 16px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .timeline-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .timeline-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .timeline-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6c757d;
+      flex-shrink: 0;
+    }
+    
+    .timeline-icon.active {
+      background: #28a745;
+      box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
+    }
+    
+    .timeline-text {
+      color: #495057;
+    }
+    
+    /* 빈 상태 */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6c757d;
+    }
+    
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    .empty-state-text {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    
+    .empty-state-subtext {
+      font-size: 14px;
+      color: #adb5bd;
+    }
+    /* 기존 스타일에 추가 */
+  
+    .event-actions {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e9ecef;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+  
+    .event-actions button {
+      width: 100%;
+    }
+  
+    /* 경로 정보 라이브 업데이트 */
+    .route-info-live {
+      animation: fadeIn 0.3s ease;
+    }
+  
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+      /* 경로 모달 */
+    #routeModal .modal-content {
+      padding: 0;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow: hidden;
+    }
+  
+    /* X 버튼 호버 효과 */
+    #routeModal button[onclick*="closeRouteModal"]:not(.btn-primary):hover {
+      background: #e9ecef !important;
+      transform: rotate(90deg);
+    }
+  
+    /* 스크롤바 스타일링 */
+    #routeModalBody::-webkit-scrollbar {
+      width: 8px;
+    }
+  
+    #routeModalBody::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+  
+    #routeModalBody::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+  
+    #routeModalBody::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+  
+    /* 경로 단계 애니메이션 */
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  
+    #routeModal .modal-content > div {
+      animation: slideInUp 0.3s ease;
+    }
+  
+    
+    /* 반응형 */
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 24px;
+      }
+      
+      .login-header h1 {
+        font-size: 24px;
+      }
+      
+      .header-right {
+        flex-direction: column;
+        width: 100%;
+        gap: 8px;
+      }
+      
+      .user-info,
+      .btn-logout {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>

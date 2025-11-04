@@ -1,0 +1,733 @@
+<script>
+    /**
+     * 사용자 페이지 애플리케이션
+     */
+    const UserApp = {
+      currentPosition: null,
+      userId: null,
+      userName: null,
+      watchId: null,
+      routeUpdateInterval: null,
+      currentEvents: [],
+      attendanceStatus: "pending",
+      
+      /**
+       * 초기화
+       */
+      init: function() {
+        console.log('UserApp initializing...');
+        
+        const savedUserId = localStorage.getItem('attendanceUserId');
+        const savedUserName = localStorage.getItem('attendanceUserName');
+        
+        if (savedUserId) {
+          this.userId = savedUserId;
+          this.userName = savedUserName;
+          this.showMainScreen();
+          this.startLocationTracking();
+          this.loadEvents();
+          
+          // 위치 업데이트 (1분마다)
+          setInterval(() => this.updateLocation(), 60000);
+          
+          // 이벤트 새로고침 (5분마다)
+          setInterval(() => this.loadEvents(), 60000 * 5);
+          
+          // 경로 정보 업데이트 (5분마다)
+          setInterval(() => this.updateAllRoutes(), 60000 * 5);
+  
+          // 출석 정보 업데이트 (1분마다)
+          setInterval(() => this.updateAttendance(), 60000);
+        } else {
+          this.showLoginScreen();
+        }
+      },
+      
+      /**
+       * 로그인
+       */
+      login: function(event) {
+        event.preventDefault();
+        
+        const userIdInput = document.getElementById('userIdInput').value.trim();
+        
+        if (!userIdInput) {
+          alert('사용자 ID를 입력해주세요.');
+          return;
+        }
+        
+        google.script.run
+          .withSuccessHandler((user) => {
+            if (user && user.userId) {
+              this.userId = user.userId;
+              this.userName = user.userName;
+              
+              localStorage.setItem('attendanceUserId', this.userId);
+              localStorage.setItem('attendanceUserName', this.userName);
+              
+              this.showMainScreen();
+              this.startLocationTracking();
+              this.loadEvents();
+              
+              setInterval(() => this.updateLocation(), 60000);
+              setInterval(() => this.loadEvents(), 60000 * 5);
+              setInterval(() => this.updateAllRoutes(), 60000 * 5);
+            } else {
+              alert('❌ 사용자를 찾을 수 없습니다.');
+            }
+          })
+          .withFailureHandler((error) => {
+            alert('❌ 로그인 실패\n\n' + error.message);
+          })
+          .getUserById(userIdInput);
+      },
+      
+      /**
+       * 로그아웃
+       */
+      logout: function() {
+        if (confirm('로그아웃 하시겠습니까?')) {
+          if (this.watchId) {
+            navigator.geolocation.clearWatch(this.watchId);
+          }
+          
+          localStorage.removeItem('attendanceUserId');
+          localStorage.removeItem('attendanceUserName');
+          
+          this.userId = null;
+          this.userName = null;
+          this.currentPosition = null;
+          this.currentEvents = [];
+          
+          this.showLoginScreen();
+        }
+      },
+      
+      /**
+       * 로그인 화면 표시
+       */
+      showLoginScreen: function() {
+        document.getElementById('loginContainer').style.display = 'flex';
+        document.getElementById('mainContainer').style.display = 'none';
+        document.getElementById('userIdInput').focus();
+      },
+      
+      /**
+       * 메인 화면 표시
+       */
+      showMainScreen: function() {
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
+        
+        const userNameEl = document.getElementById('userName');
+        if (userNameEl) {
+          userNameEl.textContent = this.userName || this.userId;
+        }
+      },
+      
+      /**
+       * 위치 추적 시작
+       */
+      startLocationTracking: function() {
+        if (!navigator.geolocation) {
+          this.updateLocationStatus('error', '❌ 이 브라우저는 위치 서비스를 지원하지 않습니다.');
+          return;
+        }
+        
+        this.watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            this.currentPosition = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            
+            const accuracy = Math.round(position.coords.accuracy);
+            this.updateLocationStatus('active', `✅ 위치 추적 활성화 (정확도: ${accuracy}m)`);
+            
+            this.updateLocation();
+            
+            // 위치 변경 시 경로 정보도 업데이트
+            this.updateAllRoutes();
+          },
+          (error) => {
+            this.updateLocationStatus('error', `❌ 위치 정보를 가져올 수 없습니다: ${error.message}`);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          }
+        );
+      },
+  
+      /**
+       * 출석 정보 업데이트
+       */
+
+      
+      /**
+       * 위치 상태 업데이트
+       */
+      updateLocationStatus: function(status, message) {
+        const statusEl = document.getElementById('locationStatus');
+        if (statusEl) {
+          statusEl.className = `location-status ${status}`;
+          statusEl.innerHTML = message;
+        }
+      },
+      
+      /**
+       * 서버에 위치 업데이트
+       */
+      updateLocation: function() {
+        if (!this.currentPosition || !this.userId) return;
+        
+        google.script.run
+          .withSuccessHandler(() => {
+            console.log('Location updated');
+          })
+          .withFailureHandler((error) => {
+            console.error('Location update failed:', error);
+          })
+          .updateUserLocation({
+            userId: this.userId,
+            lat: this.currentPosition.lat,
+            lng: this.currentPosition.lng
+          });
+      },
+      
+      /**
+       * 모든 이벤트의 경로 정보 업데이트
+       */
+      updateAllRoutes: function() {
+        if (!this.currentPosition) {
+          console.log('경로 업데이트 불가: 위치 정보 없음');
+          return;
+        }
+        
+        // 아직 출발하지 않은 이벤트들만 업데이트
+        this.currentEvents.forEach(event => {
+          if (!event.actualDepartureTime && event.destinationLat && event.destinationLng) {
+            this.calculateRoute(
+              this.currentPosition.lat,
+              this.currentPosition.lng,
+              event.destinationLat,
+              event.destinationLng,
+              event.eventId
+            );
+          }
+        });
+      },
+      
+      /**
+       * 이벤트 목록 로드
+       */
+      loadEvents: function() {
+        if (!this.userId) return;
+        
+        CommonUtils.showLoading('eventsList');
+        
+        google.script.run
+          .withSuccessHandler((events) => {
+            this.currentEvents = events || [];
+            this.displayEvents(events);
+            
+            // 로드 후 경로 정보 업데이트
+            setTimeout(() => this.updateAllRoutes(), 500);
+          })
+          .withFailureHandler((error) => {
+            console.error('Failed to load events:', error);
+          })
+          .getEventsByUser(this.userId);
+      },
+      
+      /**
+       * 이벤트 표시
+       */
+      displayEvents: function(events) {
+        const container = document.getElementById('eventsList');
+        
+        if (!events || !Array.isArray(events) || events.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📅</div>
+              <div class="empty-state-text">등록된 일정이 없습니다</div>
+              <div class="empty-state-subtext">Google Sheets의 Events 시트를 확인해주세요</div>
+            </div>
+          `;
+          return;
+        }
+        
+        const now = new Date();
+        
+        container.innerHTML = events.map(event => {
+          const arrivalTime = new Date(event.arrivalTime);
+          const isUpcoming = arrivalTime > now;
+          const statusClass = CommonUtils.getStatusClass(event.attendanceStatus);
+          const statusText = CommonUtils.getStatusText(event.attendanceStatus);
+          const hasDeparted = event.actualDepartureTime;
+          
+          let cardClass = 'event-card';
+          if (!event.prepStartTime) {
+            cardClass += ' urgent';
+          } else if (event.attendanceStatus === 'Present' || event.attendanceStatus === 'Late') {
+            cardClass += ' completed';
+          }
+          
+          return `
+            <div class="${cardClass}" data-event-id="${event.eventId}">
+              <div class="event-title">
+                ${isUpcoming ? '⏰' : '✓'} ${event.destination}
+              </div>
+              
+              <div class="event-detail">
+                <span class="label">도착 시간:</span>
+                <span class="value">${CommonUtils.formatDateTime(arrivalTime)}</span>
+              </div>
+              
+              ${event.prepStartTime ? `
+                <div class="timeline">
+                  <div class="timeline-item">
+                    <div class="timeline-icon ${new Date() >= new Date(event.prepStartTime) ? 'active' : ''}"></div>
+                    <div class="timeline-text">준비 시작: ${CommonUtils.formatTime(event.prepStartTime)}</div>
+                  </div>
+                  <div class="timeline-item">
+                    <div class="timeline-icon ${new Date() >= new Date(event.expectedDepartureTime) ? 'active' : ''}"></div>
+                    <div class="timeline-text">출발 예정: ${CommonUtils.formatTime(event.expectedDepartureTime)}</div>
+                  </div>
+                  <div class="timeline-item">
+                    <div class="timeline-icon ${event.attendanceStatus === 'Present' || event.attendanceStatus === 'Late' ? 'active' : ''}"></div>
+                    <div class="timeline-text">도착 예정: ${CommonUtils.formatTime(event.arrivalTime)}</div>
+                  </div>
+                </div>
+              ` : ''}
+  
+              <div class="event-detail" style="margin-top: 12px;">
+                <span class="label">출석 상태:</span>
+                <span class="status ${statusClass}">${statusText}</span>
+              </div>
+              
+              <div class="event-actions">
+                ${!event.prepStartTime ? `
+                  <button onclick="UserApp.openEventModal('${event.eventId}', ${event.destinationLat}, ${event.destinationLng})" class="btn-primary full-width">
+                    📝 출발지 정보 입력
+                  </button>
+                ` : ''}
+                <button onclick="UserApp.showRouteDetail('${event.eventId}', '${event.destination}', ${event.destinationLat}, ${event.destinationLng})" class="btn-secondary full-width" style="margin-top: 8px;">
+                  🗺️ 상세 경로 보기
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      },
+      
+      /**
+       * 상세 경로 모달 표시 - TMap API 사용
+       */
+      showRouteDetail: function(eventId, destination, destLat, destLng) {
+        if (!this.currentPosition) {
+          alert('현재 위치를 가져올 수 없습니다.');
+          return;
+        }
+        
+        // 모달 표시
+        const modal = document.getElementById('routeModal');
+        const modalBody = document.getElementById('routeModalBody');
+        
+        if (!modal || !modalBody) return;
+        
+        // 로딩 표시
+        modalBody.innerHTML = `
+          <div style="padding: 40px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 16px; animation: spin 1s linear infinite;">🔄</div>
+            <div style="font-size: 16px; color: #6c757d; margin-bottom: 8px;">TMap으로 경로를 찾는 중...</div>
+            <div style="font-size: 13px; color: #adb5bd;">실시간 대중교통 정보 조회</div>
+          </div>
+          <style>
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          </style>
+        `;
+        modal.style.display = 'flex';
+        
+        // 서버에서 TMap API로 경로 조회
+        google.script.run
+          .withSuccessHandler((result) => {
+            if (result.success) {
+              this.displayRouteDetailModal(destination, result.routes);
+            } else {
+              this.displayRouteError(result.error);
+            }
+          })
+          .withFailureHandler((error) => {
+            this.displayRouteError(error.message);
+          })
+          .getDetailedRoutes({
+            originLat: this.currentPosition.lat,
+            originLng: this.currentPosition.lng,
+            destLat: destLat,
+            destLng: destLng,
+            destination: destination
+          });
+      },
+      
+      /**
+       * 상세 경로 모달 내용 표시
+       */
+      displayRouteDetailModal: function(destination, routes) {
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        const modalBody = document.getElementById('routeModalBody');
+        
+        modalBody.innerHTML = `
+          <div style="padding: 24px; max-height: 80vh; overflow-y: auto;">
+            <!-- 헤더 -->
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+              <div style="flex: 1;">
+                <h2 style="margin: 0 0 4px 0; font-size: 22px; font-weight: 700;">🗺️ ${destination}</h2>
+                <p style="margin: 0; color: #6c757d; font-size: 13px; line-height: 1.5;">
+                  ${timeStr} 기준 · 현재위치 → 목적지
+                </p>
+              </div>
+              <button onclick="UserApp.closeRouteModal()" style="background: #f8f9fa; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; color: #6c757d; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; margin-left: 12px;">
+                ✕
+              </button>
+            </div>
+            
+            ${routes.transit?.isFallback ? `
+              <div style="margin-bottom: 16px; padding: 12px; background: #fff3cd; border-radius: 8px; font-size: 13px; color: #856404;">
+                ⚠️ TMap API 응답이 없어 예상 경로를 표시합니다
+              </div>
+            ` : ''}
+            
+            <!-- 대중교통 상세 -->
+            ${this.renderTransitDetail(routes.transit)}
+            
+            <!-- 자동차 -->
+            ${this.renderDriveDetail(routes.drive)}
+            
+            <!-- 도보 -->
+            ${this.renderWalkDetail(routes.walk)}
+            
+            <!-- 주의사항 -->
+            <div style="margin-top: 20px; padding: 14px; background: #e3f2fd; border-radius: 8px; font-size: 13px; color: #1565c0; line-height: 1.6;">
+              <div style="font-weight: 600; margin-bottom: 6px;">💡 안내</div>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li>실제 소요시간은 교통 상황에 따라 달라질 수 있습니다</li>
+                <li>대중교통 배차 간격과 환승 대기시간을 고려하세요</li>
+                <li>출발 전 실시간 교통정보를 다시 확인하세요</li>
+              </ul>
+            </div>
+            
+            <!-- 닫기 버튼 -->
+            <button onclick="UserApp.closeRouteModal()" class="btn-primary full-width" style="margin-top: 20px; padding: 14px;">
+              확인
+            </button>
+          </div>
+        `;
+      },
+      
+      /**
+       * 대중교통 상세 렌더링
+       */
+      renderTransitDetail: function(transit) {
+        if (!transit) {
+          return `
+            <div style="padding: 20px; background: #f8f9fa; border-radius: 12px; margin-bottom: 16px; text-align: center; color: #6c757d;">
+              대중교통 경로를 찾을 수 없습니다
+            </div>
+          `;
+        }
+        
+        let stepsHtml = '';
+        
+        if (transit.steps && transit.steps.length > 0) {
+          stepsHtml = transit.steps.map((step, index) => {
+            return `
+              <div style="display: flex; gap: 12px; margin-bottom: ${index < transit.steps.length - 1 ? '16px' : '0'};">
+                <!-- 아이콘 -->
+                <div style="flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; background: ${step.color || '#667eea'}; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                  ${step.icon}
+                </div>
+                
+                <!-- 내용 -->
+                <div style="flex: 1;">
+                  <div style="font-size: 15px; font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
+                    ${step.title}
+                  </div>
+                  <div style="font-size: 13px; color: #6c757d; line-height: 1.5;">
+                    ${step.description}
+                  </div>
+                  ${step.duration ? `
+                    <div style="display: inline-block; margin-top: 6px; padding: 4px 10px; background: #e3f2fd; border-radius: 12px; font-size: 12px; color: #1976d2; font-weight: 600;">
+                      ⏱️ 약 ${step.duration}분
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+              
+              ${index < transit.steps.length - 1 ? `
+                <div style="margin-left: 22px; margin-bottom: 16px; border-left: 2px dashed #dee2e6; height: 24px;"></div>
+              ` : ''}
+            `;
+          }).join('');
+        }
+        
+        return `
+          <div style="padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+            <!-- 헤더 -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 36px;">🚇</span>
+                <div>
+                  <div style="font-size: 20px; font-weight: 700;">대중교통</div>
+                  <div style="font-size: 13px; opacity: 0.9;">지하철 · 버스</div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 32px; font-weight: 700; line-height: 1;">${transit.duration}분</div>
+                <div style="font-size: 13px; opacity: 0.9; margin-top: 4px;">${transit.distance}km</div>
+              </div>
+            </div>
+            
+            ${transit.fare ? `
+              <div style="padding: 12px; background: rgba(255,255,255,0.2); border-radius: 8px; margin-bottom: 16px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">💳</span>
+                <div>
+                  <div style="font-size: 12px; opacity: 0.9;">교통카드 요금</div>
+                  <div style="font-size: 18px; font-weight: 700;">${transit.fare.toLocaleString()}원</div>
+                </div>
+              </div>
+            ` : ''}
+            
+            ${transit.summary ? `
+              <div style="padding: 10px; background: rgba(255,255,255,0.15); border-radius: 8px; margin-bottom: 16px; font-size: 12px; display: flex; justify-content: space-around;">
+                <div>
+                  <div style="opacity: 0.9;">도보 거리</div>
+                  <div style="font-weight: 600;">${Math.round(transit.summary.totalWalkDistance)}m</div>
+                </div>
+                <div>
+                  <div style="opacity: 0.9;">도보 시간</div>
+                  <div style="font-weight: 600;">${transit.summary.totalWalkTime}분</div>
+                </div>
+              </div>
+            ` : ''}
+            
+            <!-- 상세 경로 -->
+            <div style="background: white; padding: 18px; border-radius: 10px; color: #2c3e50;">
+              ${stepsHtml}
+            </div>
+          </div>
+        `;
+      },
+      
+      /**
+       * 자동차 상세 렌더링
+       */
+      renderDriveDetail: function(drive) {
+        if (!drive) return '';
+        
+        return `
+          <div style="padding: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; color: white; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 36px;">🚗</span>
+                <div>
+                  <div style="font-size: 20px; font-weight: 700;">자동차</div>
+                  <div style="font-size: 13px; opacity: 0.9;">택시 · 승용차</div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 32px; font-weight: 700; line-height: 1;">${drive.duration}분</div>
+                <div style="font-size: 13px; opacity: 0.9; margin-top: 4px;">${drive.distance}km</div>
+              </div>
+            </div>
+            
+            ${drive.taxiFare ? `
+              <div style="background: rgba(255,255,255,0.2); border-radius: 8px; padding: 14px;">
+                <div style="font-size: 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: ${drive.tollFare > 0 ? '10px' : '0'};">
+                  <span style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🚕</span>
+                    <span>예상 택시비</span>
+                  </span>
+                  <strong style="font-size: 18px;">${drive.taxiFare.toLocaleString()}원</strong>
+                </div>
+                ${drive.tollFare && drive.tollFare > 0 ? `
+                  <div style="font-size: 13px; display: flex; justify-content: space-between; opacity: 0.9; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3);">
+                    <span>+ 통행료</span>
+                    <span>${drive.tollFare.toLocaleString()}원</span>
+                  </div>
+                ` : ''}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      },
+      
+      /**
+       * 도보 상세 렌더링
+       */
+      renderWalkDetail: function(walk) {
+        if (!walk) return '';
+        
+        return `
+          <div style="padding: 20px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 12px; color: white; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 36px;">🚶</span>
+                <div>
+                  <div style="font-size: 20px; font-weight: 700;">도보</div>
+                  <div style="font-size: 13px; opacity: 0.9;">걸어서 이동</div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 32px; font-weight: 700; line-height: 1;">${walk.duration}분</div>
+                <div style="font-size: 13px; opacity: 0.9; margin-top: 4px;">${walk.distance}km</div>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+      
+      /**
+       * 경로 에러 표시
+       */
+      displayRouteError: function(errorMessage) {
+        const modalBody = document.getElementById('routeModalBody');
+        
+        modalBody.innerHTML = `
+          <div style="padding: 40px; text-align: center;">
+            <div style="font-size: 64px; margin-bottom: 16px;">⚠️</div>
+            <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #dc3545;">경로를 찾을 수 없습니다</h3>
+            <p style="margin: 0 0 24px 0; color: #6c757d; font-size: 14px;">${errorMessage}</p>
+            <button onclick="UserApp.closeRouteModal()" class="btn-primary">
+              확인
+            </button>
+          </div>
+        `;
+      },
+      
+      /**
+       * 경로 모달 닫기
+       */
+      closeRouteModal: function() {
+        const modal = document.getElementById('routeModal');
+        if (modal) {
+          modal.style.display = 'none';
+        }
+      },
+      
+      /**
+       * 이벤트 모달 열기
+       */
+      openEventModal: function(eventId, destLat, destLng) {
+        document.getElementById('eventId').value = eventId;
+        document.getElementById('destinationLat').value = destLat;
+        document.getElementById('destinationLng').value = destLng;
+        document.getElementById('eventModal').style.display = 'flex';
+        document.getElementById('routeInfo').style.display = 'none';
+      },
+      
+      /**
+       * 모달 닫기
+       */
+      closeModal: function() {
+        document.getElementById('eventModal').style.display = 'none';
+        document.getElementById('eventForm').reset();
+        document.getElementById('formError').textContent = '';
+        document.getElementById('routeInfo').style.display = 'none';
+      },
+      
+      /**
+       * 현재 위치 사용
+       */
+      useCurrentLocation: function() {
+        if (!this.currentPosition) {
+          CommonUtils.showErrorAlert('현재 위치를 가져올 수 없습니다. 위치 서비스를 활성화해주세요.');
+          return;
+        }
+        
+        document.getElementById('departureLat').value = this.currentPosition.lat;
+        document.getElementById('departureLng').value = this.currentPosition.lng;
+        document.getElementById('departureLocation').value = '현재 위치';
+        
+        CommonUtils.showSuccess('현재 위치가 설정되었습니다.');
+      },
+      
+      
+      /**
+       * 이벤트 상세 정보 제출
+       */
+      submitEventDetails: function(event) {
+        event.preventDefault();
+        
+        const eventId = document.getElementById('eventId').value;
+        const departureLocation = document.getElementById('departureLocation').value;
+        const prepTime = parseInt(document.getElementById('prepTime').value);
+        const departureLat = document.getElementById('departureLat').value;
+        const departureLng = document.getElementById('departureLng').value;
+        const destLat = document.getElementById('destinationLat').value;
+        const destLng = document.getElementById('destinationLng').value;
+        
+        if (!departureLat || !departureLng) {
+          CommonUtils.showError('formError', '출발지 위치를 설정해주세요.');
+          return;
+        }
+        
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = '저장 중...';
+        submitBtn.disabled = true;
+        
+        const distance = this.calculateDistance(
+          parseFloat(departureLat),
+          parseFloat(departureLng),
+          parseFloat(destLat),
+          parseFloat(destLng)
+        );
+        
+        const estimatedTime = Math.ceil((distance / 40) * 60);
+        
+        google.script.run
+          .withSuccessHandler((result) => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            
+            if (result.success) {
+              const message = `저장되었습니다!\n\n` +
+                            `예상 이동시간: ${result.travelTime}분\n` +
+                            `출발 예정: ${CommonUtils.formatDateTime(result.expectedDepartureTime)}\n` +
+                            `준비 시작: ${CommonUtils.formatDateTime(result.prepStartTime)}`;
+              
+              alert(message);
+              this.closeModal();
+              this.loadEvents();
+            } else {
+              CommonUtils.showError('formError', '저장 실패: ' + result.error);
+            }
+          })
+          .withFailureHandler((error) => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            CommonUtils.showError('formError', '저장 실패: ' + error);
+          })
+          .updateEventDetails({
+            eventId: eventId,
+            departureLocation: departureLocation,
+            departureLat: parseFloat(departureLat),
+            departureLng: parseFloat(departureLng),
+            prepTime: prepTime,
+            estimatedTravelTime: estimatedTime
+          });
+      }
+    };
+    
+    // 페이지 로드 시 초기화
+    window.onload = function() {
+      UserApp.init();
+    };
+  </script>
