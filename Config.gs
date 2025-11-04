@@ -34,7 +34,7 @@ const Config = {
     DEPART_NOTIFICATION_2: 5,
     LATE_THRESHOLD: 10,
     ABSENT_THRESHOLD: 30,
-    BUFFER_TIME: 10  // 준비시작과 출발 사이의 여유 시간
+    BUFFER_TIME: 10  // 출발과 도착 사이의 여유 시간
   },
   
   // 출석 상태

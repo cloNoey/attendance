@@ -42,11 +42,11 @@ const EventService = {
       // 이동시간 계산
       const travelTime = TMapAPI.getTransitRoute(data.departureLng, data.departureLat, event.destinationLng, event.departureLat).duration;
       
-      // 시간 계산
+      // 시간 계산: 도착시각에서 (이동시간 + 10분 버퍼)를 빼서 출발 예정 시각 계산
       const arrivalTime = new Date(event.arrivalTime);
-      const expectedDepartureTime = new Date(arrivalTime.getTime() - travelTime * 60000);
-      // 준비시간 + 10분 버퍼를 고려하여 준비시작시각 계산
-      const prepStartTime = new Date(expectedDepartureTime.getTime() - (data.prepTime + Config.TIME.BUFFER_TIME) * 60000);
+      const expectedDepartureTime = new Date(arrivalTime.getTime() - (travelTime + Config.TIME.BUFFER_TIME) * 60000);
+      // 출발 예정 시각에서 준비시간을 빼서 준비시작시각 계산
+      const prepStartTime = new Date(expectedDepartureTime.getTime() - data.prepTime * 60000);
       
       // 이벤트 업데이트
       EventModel.update(data.eventId, {
