@@ -136,14 +136,14 @@ const LocationService = {
       currentLat, currentLng,
       event.destinationLat, event.destinationLng
     );
-    
+
     if (distance <= Config.DISTANCE.ARRIVAL_CHECK) {
       const arrivalTime = new Date(event.arrivalTime);
       const timeDiff = (now - arrivalTime) / 60000; // 분 단위
-      
+
       let newStatus = '';
       let present = 'No';
-      
+
       if (timeDiff < 0) {
         // 도착시각 이전
         newStatus = Config.ATTENDANCE_STATUS.PRESENT;
@@ -157,10 +157,20 @@ const LocationService = {
         newStatus = Config.ATTENDANCE_STATUS.LATE;
         present = 'Yes';
       }
-      
-      if (newStatus) {
+
+      if (newStatus && newStatus !== event.attendanceStatus) {
         EventModel.update(event.eventId, { attendanceStatus: newStatus });
         AttendanceModel.updateStatus(event.eventId, present, newStatus, now);
+
+        // Notifications 시트에 기록
+        const notifId = NotificationModel.create(
+          event.eventId,
+          event.userId,
+          Config.NOTIFICATION_TYPE.ATTENDANCE_CHANGED,
+          `출석 상태가 ${newStatus}로 변경되었습니다.`,
+          now
+        );
+        NotificationModel.updateStatus(notifId, 'Sent', now);
       }
     }
   },
@@ -170,17 +180,27 @@ const LocationService = {
    */
   _updateAttendanceByTime: function(event, now) {
     const arrivalTime = new Date(event.arrivalTime);
-    
+
     // 도착시각에 상태가 Pending이면 Absent로 변경
     if (now >= arrivalTime && event.attendanceStatus === Config.ATTENDANCE_STATUS.PENDING) {
       EventModel.update(event.eventId, { attendanceStatus: Config.ATTENDANCE_STATUS.ABSENT });
       AttendanceModel.updateStatus(event.eventId, 'No', Config.ATTENDANCE_STATUS.ABSENT, null);
+
+      // Notifications 시트에 기록
+      const notifId = NotificationModel.create(
+        event.eventId,
+        event.userId,
+        Config.NOTIFICATION_TYPE.ATTENDANCE_CHANGED,
+        `출석 상태가 ${Config.ATTENDANCE_STATUS.ABSENT}로 변경되었습니다.`,
+        now
+      );
+      NotificationModel.updateStatus(notifId, 'Sent', now);
     }
-    
+
     // 도착시각+10분에 맞춤 메시지 발송
     const tenMinAfter = new Date(arrivalTime.getTime() + 10 * 60000);
     if (now >= tenMinAfter && !event.arriveSoon) {
-      NotificationService.sendCustomMessage(event.userId, event.attendanceStatus);
+      NotificationService.sendCustomMessage(event.eventId, event.userId, event.attendanceStatus);
     }
   },
   
