@@ -7,7 +7,7 @@ const NotificationService = {
   /**
    * 알림 스케줄 설정
    */
-  scheduleNotifications: function(eventId, userId, prepStartTime, expectedDepartureTime) {
+  scheduleNotifications: function(eventId, userId, prepStartTime, expectedDepartureTime, arrivalTime) {
     const notifications = [
       {
         time: new Date(prepStartTime.getTime() - Config.TIME.PREP_NOTIFICATION_1 * 60000),
@@ -38,6 +38,21 @@ const NotificationService = {
         time: expectedDepartureTime,
         type: Config.NOTIFICATION_TYPE.DEPART_NOW,
         message: '출발하세요!'
+      },
+      {
+        time: new Date(arrivalTime.getTime() - Config.TIME.ARRIVE_NOTIFICATION_1 * 60000),
+        type: Config.NOTIFICATION_TYPE.ARRIVE_10MIN,
+        message: '도착 10분 전입니다.'
+      },
+      {
+        time: new Date(arrivalTime.getTime() - Config.TIME.ARRIVE_NOTIFICATION_2 * 60000),
+        type: Config.NOTIFICATION_TYPE.ARRIVE_5MIN,
+        message: '도착 5분 전입니다.'
+      },
+      {
+        time: new Date(arrivalTime.getTime() - Config.TIME.ARRIVE_NOTIFICATION_3 * 60000),
+        type: Config.NOTIFICATION_TYPE.ARRIVE_1MIN,
+        message: '도착 1분 전입니다!'
       }
     ];
     

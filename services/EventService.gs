@@ -64,7 +64,8 @@ const EventService = {
         data.eventId,
         event.userId,
         prepStartTime,
-        expectedDepartureTime
+        expectedDepartureTime,
+        arrivalTime
       );
       
       return {

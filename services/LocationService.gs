@@ -182,9 +182,11 @@ const LocationService = {
     const arrivalTime = new Date(event.arrivalTime);
     Logger.log(`⏰ 시간 기반 체크: 현재 ${now.toISOString()}, 도착예정 ${arrivalTime.toISOString()}`);
 
-    // 도착시각에 상태가 Pending이면 Absent로 변경
-    if (now >= arrivalTime && event.attendanceStatus === Config.ATTENDANCE_STATUS.PENDING) {
-      Logger.log(`🔴 도착시각 경과 - Absent로 변경`);
+    // 도착시각 경과 시 Present가 아니면 Absent로 변경 (이미 Absent인 경우 제외)
+    if (now >= arrivalTime &&
+        event.attendanceStatus !== Config.ATTENDANCE_STATUS.PRESENT &&
+        event.attendanceStatus !== Config.ATTENDANCE_STATUS.ABSENT) {
+      Logger.log(`🔴 도착시각 경과 - ${event.attendanceStatus}에서 Absent로 변경`);
 
       EventModel.update(event.eventId, { attendanceStatus: Config.ATTENDANCE_STATUS.ABSENT });
       AttendanceModel.updateStatus(event.eventId, 'No', Config.ATTENDANCE_STATUS.ABSENT, null);
