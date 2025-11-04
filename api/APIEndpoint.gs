@@ -68,7 +68,7 @@ function getEventsByUser(userId) {
         
         // 객체 생성 - 명시적으로 모든 필드 지정
         const eventObj = {
-          eventId: String(row[0] || ''),
+          eventId: Number(row[0] || 0),
           userId: String(row[1] || ''),
           userName: String(row[2] || ''),
           destination: String(row[3] || ''),
@@ -214,9 +214,12 @@ function updateEventDetails(data) {
     const allData = eventsSheet.getDataRange().getValues();
     let eventRow = -1;
     let eventData = null;
-    
+
+    // eventId를 숫자로 변환하여 비교
+    const searchId = Number(data.eventId);
+
     for (let i = 1; i < allData.length; i++) {
-      if (allData[i][0] === data.eventId) {
+      if (Number(allData[i][0]) === searchId) {
         eventRow = i + 1;
         eventData = allData[i];
         break;

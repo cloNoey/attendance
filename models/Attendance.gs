@@ -32,11 +32,14 @@ const AttendanceModel = {
   updateStatus: function(eventId, present, status, checkInTime) {
     const sheet = SheetUtils.getSheet(Config.SHEETS.ATTENDANCE);
     const values = sheet.getDataRange().getValues();
-    
+
+    // eventId를 숫자로 변환하여 비교
+    const searchId = Number(eventId);
+
     for (let i = 1; i < values.length; i++) {
-      if (values[i][0] === eventId) {
+      if (Number(values[i][0]) === searchId) {
         const rowNum = i + 1;
-        
+
         sheet.getRange(rowNum, 4).setValue(present);
         sheet.getRange(rowNum, 5).setValue(status);
         
@@ -60,9 +63,12 @@ const AttendanceModel = {
   updateArrivingSoon: function(eventId, arrivingSoon) {
     const sheet = SheetUtils.getSheet(Config.SHEETS.ATTENDANCE);
     const values = sheet.getDataRange().getValues();
-    
+
+    // eventId를 숫자로 변환하여 비교
+    const searchId = Number(eventId);
+
     for (let i = 1; i < values.length; i++) {
-      if (values[i][0] === eventId) {
+      if (Number(values[i][0]) === searchId) {
         const rowNum = i + 1;
         sheet.getRange(rowNum, 10).setValue(arrivingSoon ? 'Yes' : 'No');
         
@@ -81,9 +87,12 @@ const AttendanceModel = {
   getByEventId: function(eventId) {
     const sheet = SheetUtils.getSheet(Config.SHEETS.ATTENDANCE);
     const values = sheet.getDataRange().getValues();
-    
+
+    // eventId를 숫자로 변환하여 비교
+    const searchId = Number(eventId);
+
     for (let i = 1; i < values.length; i++) {
-      if (values[i][0] === eventId) {
+      if (Number(values[i][0]) === searchId) {
         return this._rowToObject(values[i], i + 1);
       }
     }
