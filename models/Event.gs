@@ -86,9 +86,12 @@ const EventModel = {
       }
       
       const values = sheet.getRange(2, 1, lastRow - 1, 19).getValues();
-      
+
+      // eventId를 숫자로 변환하여 비교
+      const searchId = Number(eventId);
+
       for (let i = 0; i < values.length; i++) {
-        if (values[i][0] === eventId) {
+        if (Number(values[i][0]) === searchId) {
           return this._rowToObject(values[i], i + 2);
         }
       }
@@ -232,18 +235,21 @@ const EventModel = {
       }
       
       const values = sheet.getRange(2, 1, lastRow - 1, 19).getValues();
-      
+
+      // eventId를 숫자로 변환하여 비교
+      const searchId = Number(eventId);
+
       for (let i = 0; i < values.length; i++) {
-        if (values[i][0] === eventId) {
+        if (Number(values[i][0]) === searchId) {
           const rowNum = i + 2;
-          
+
           Object.keys(updates).forEach(key => {
             const colNum = this._getColumnNumber(key);
             if (colNum > 0) {
               sheet.getRange(rowNum, colNum).setValue(updates[key]);
             }
           });
-          
+
           return true;
         }
       }
