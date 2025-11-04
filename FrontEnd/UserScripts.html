@@ -107,15 +107,12 @@
           
           // 위치 업데이트 (1분마다)
           setInterval(() => this.updateLocation(), 60000);
-          
-          // 이벤트 새로고침 (5분마다)
-          setInterval(() => this.loadEvents(), 60000 * 5);
-          
+
+          // 이벤트 새로고침 (1분마다 - 출석 상태 실시간 반영)
+          setInterval(() => this.loadEvents(), 60000);
+
           // 경로 정보 업데이트 (5분마다)
           setInterval(() => this.updateAllRoutes(), 60000 * 5);
-  
-          // 출석 정보 업데이트 (1분마다)
-          setInterval(() => this.updateAttendance(), 60000);
         } else {
           this.showLoginScreen();
         }
