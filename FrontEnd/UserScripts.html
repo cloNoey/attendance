@@ -1,5 +1,83 @@
 <script>
     /**
+     * 경로 정보 캐시 관리
+     */
+    const RouteCache = {
+      CACHE_DURATION: 30 * 60 * 1000, // 30분
+
+      /**
+       * 캐시 키 생성
+       */
+      getCacheKey: function(originLat, originLng, destLat, destLng) {
+        return `route_${originLat.toFixed(5)}_${originLng.toFixed(5)}_${destLat.toFixed(5)}_${destLng.toFixed(5)}`;
+      },
+
+      /**
+       * 캐시에서 경로 정보 가져오기
+       */
+      get: function(originLat, originLng, destLat, destLng) {
+        try {
+          const key = this.getCacheKey(originLat, originLng, destLat, destLng);
+          const cached = localStorage.getItem(key);
+
+          if (!cached) {
+            return null;
+          }
+
+          const data = JSON.parse(cached);
+          const now = new Date().getTime();
+
+          // 캐시가 만료되었는지 확인
+          if (now - data.timestamp > this.CACHE_DURATION) {
+            localStorage.removeItem(key);
+            return null;
+          }
+
+          console.log('✅ 캐시에서 경로 정보 로드:', key);
+          return data.routes;
+        } catch (error) {
+          console.error('캐시 읽기 실패:', error);
+          return null;
+        }
+      },
+
+      /**
+       * 경로 정보 캐싱
+       */
+      set: function(originLat, originLng, destLat, destLng, routes) {
+        try {
+          const key = this.getCacheKey(originLat, originLng, destLat, destLng);
+          const data = {
+            timestamp: new Date().getTime(),
+            routes: routes
+          };
+
+          localStorage.setItem(key, JSON.stringify(data));
+          console.log('💾 경로 정보 캐시 저장:', key);
+        } catch (error) {
+          console.error('캐시 저장 실패:', error);
+        }
+      },
+
+      /**
+       * 모든 캐시 삭제
+       */
+      clearAll: function() {
+        try {
+          const keys = Object.keys(localStorage);
+          keys.forEach(key => {
+            if (key.startsWith('route_')) {
+              localStorage.removeItem(key);
+            }
+          });
+          console.log('🗑️ 모든 경로 캐시 삭제');
+        } catch (error) {
+          console.error('캐시 삭제 실패:', error);
+        }
+      }
+    };
+
+    /**
      * 사용자 페이지 애플리케이션
      */
     const UserApp = {
@@ -197,6 +275,42 @@
       },
       
       /**
+       * TMap API로 경로 정보 가져오기 (캐싱 적용)
+       */
+      getTMapRoute: function(originLat, originLng, destLat, destLng, callback) {
+        // 캐시 확인
+        const cached = RouteCache.get(originLat, originLng, destLat, destLng);
+        if (cached) {
+          callback(cached);
+          return;
+        }
+
+        // 캐시가 없으면 API 호출
+        console.log('🌐 TMap API 호출 중...');
+        google.script.run
+          .withSuccessHandler((result) => {
+            if (result.success && result.routes) {
+              // 캐시에 저장
+              RouteCache.set(originLat, originLng, destLat, destLng, result.routes);
+              callback(result.routes);
+            } else {
+              console.error('경로 조회 실패:', result.error);
+              callback(null);
+            }
+          })
+          .withFailureHandler((error) => {
+            console.error('TMap API 오류:', error);
+            callback(null);
+          })
+          .getDetailedRoutes({
+            originLat: originLat,
+            originLng: originLng,
+            destLat: destLat,
+            destLng: destLng
+          });
+      },
+
+      /**
        * 모든 이벤트의 경로 정보 업데이트
        */
       updateAllRoutes: function() {
@@ -204,16 +318,21 @@
           console.log('경로 업데이트 불가: 위치 정보 없음');
           return;
         }
-        
+
         // 아직 출발하지 않은 이벤트들만 업데이트
         this.currentEvents.forEach(event => {
           if (!event.actualDepartureTime && event.destinationLat && event.destinationLng) {
-            this.calculateRoute(
+            // TMap API로 경로 정보 가져오기 (캐싱 적용)
+            this.getTMapRoute(
               this.currentPosition.lat,
               this.currentPosition.lng,
               event.destinationLat,
               event.destinationLng,
-              event.eventId
+              (routes) => {
+                if (routes && routes.transit) {
+                  console.log(`이벤트 ${event.eventId} 경로 정보 업데이트 완료`);
+                }
+              }
             );
           }
         });
@@ -223,20 +342,31 @@
        * 이벤트 목록 로드
        */
       loadEvents: function() {
-        if (!this.userId) return;
-        
+        if (!this.userId) {
+          console.log('❌ userId가 없습니다');
+          return;
+        }
+
+        console.log('=== loadEvents 시작 ===');
+        console.log('userId:', this.userId);
+
         CommonUtils.showLoading('eventsList');
-        
+
         google.script.run
           .withSuccessHandler((events) => {
+            console.log('✅ 이벤트 데이터 수신:', events);
+            console.log('이벤트 개수:', events ? events.length : 0);
+            console.log('이벤트 상세:', JSON.stringify(events, null, 2));
+
             this.currentEvents = events || [];
             this.displayEvents(events);
-            
+
             // 로드 후 경로 정보 업데이트
             setTimeout(() => this.updateAllRoutes(), 500);
           })
           .withFailureHandler((error) => {
-            console.error('Failed to load events:', error);
+            console.error('❌ 이벤트 로드 실패:', error);
+            console.error('에러 상세:', JSON.stringify(error, null, 2));
           })
           .getEventsByUser(this.userId);
       },
@@ -664,7 +794,7 @@
        */
       submitEventDetails: function(event) {
         event.preventDefault();
-        
+
         const eventId = document.getElementById('eventId').value;
         const departureLocation = document.getElementById('departureLocation').value;
         const prepTime = parseInt(document.getElementById('prepTime').value);
@@ -672,57 +802,68 @@
         const departureLng = document.getElementById('departureLng').value;
         const destLat = document.getElementById('destinationLat').value;
         const destLng = document.getElementById('destinationLng').value;
-        
+
         if (!departureLat || !departureLng) {
           CommonUtils.showError('formError', '출발지 위치를 설정해주세요.');
           return;
         }
-        
+
         const submitBtn = event.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.textContent;
-        submitBtn.textContent = '저장 중...';
+        submitBtn.textContent = '경로 조회 중...';
         submitBtn.disabled = true;
-        
-        const distance = this.calculateDistance(
+
+        // TMap API로 실제 이동시간 계산 (캐싱 적용)
+        this.getTMapRoute(
           parseFloat(departureLat),
           parseFloat(departureLng),
           parseFloat(destLat),
-          parseFloat(destLng)
-        );
-        
-        const estimatedTime = Math.ceil((distance / 40) * 60);
-        
-        google.script.run
-          .withSuccessHandler((result) => {
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-            
-            if (result.success) {
-              const message = `저장되었습니다!\n\n` +
-                            `예상 이동시간: ${result.travelTime}분\n` +
-                            `출발 예정: ${CommonUtils.formatDateTime(result.expectedDepartureTime)}\n` +
-                            `준비 시작: ${CommonUtils.formatDateTime(result.prepStartTime)}`;
-              
-              alert(message);
-              this.closeModal();
-              this.loadEvents();
+          parseFloat(destLng),
+          (routes) => {
+            let estimatedTime = 30; // 기본값
+
+            if (routes && routes.transit && routes.transit.duration) {
+              estimatedTime = routes.transit.duration;
+              console.log('✅ TMap API 이동시간:', estimatedTime, '분');
             } else {
-              CommonUtils.showError('formError', '저장 실패: ' + result.error);
+              console.log('⚠️ TMap API 실패, 기본값 사용:', estimatedTime, '분');
             }
-          })
-          .withFailureHandler((error) => {
-            submitBtn.textContent = originalText;
-            submitBtn.disabled = false;
-            CommonUtils.showError('formError', '저장 실패: ' + error);
-          })
-          .updateEventDetails({
-            eventId: eventId,
-            departureLocation: departureLocation,
-            departureLat: parseFloat(departureLat),
-            departureLng: parseFloat(departureLng),
-            prepTime: prepTime,
-            estimatedTravelTime: estimatedTime
-          });
+
+            submitBtn.textContent = '저장 중...';
+
+            google.script.run
+              .withSuccessHandler((result) => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+
+                if (result.success) {
+                  const message = `저장되었습니다!\n\n` +
+                                `예상 이동시간: ${result.travelTime}분\n` +
+                                `출발 예정: ${CommonUtils.formatDateTime(result.expectedDepartureTime)}\n` +
+                                `준비 시작: ${CommonUtils.formatDateTime(result.prepStartTime)}`;
+
+                  alert(message);
+                  this.closeModal();
+                  this.loadEvents();
+                } else {
+                  CommonUtils.showError('formError', '저장 실패: ' + result.error);
+                }
+              })
+              .withFailureHandler((error) => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                CommonUtils.showError('formError', '저장 실패: ' + error);
+              })
+              .updateEventDetails({
+                eventId: eventId,
+                departureLocation: departureLocation,
+                departureLat: parseFloat(departureLat),
+                departureLng: parseFloat(departureLng),
+                prepTime: prepTime,
+                estimatedTravelTime: estimatedTime
+              });
+          }
+        );
       }
     };
     
