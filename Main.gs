@@ -73,7 +73,11 @@ function setupTriggers() {
 
 function periodicLocationCheck() {
   try {
+    // 위치 기반 이벤트 상태 체크
     LocationService.checkAllActiveEvents();
+
+    // 예정된 알림 체크 및 발송
+    NotificationService.checkAndSendScheduledNotifications();
   } catch (error) {
     Logger.log('periodicLocationCheck Error: ' + error.toString());
   }

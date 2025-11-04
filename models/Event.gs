@@ -10,9 +10,9 @@ const EventModel = {
   create: function(eventData) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(Config.SHEETS.EVENTS);
-    const eventId = Utilities.getUuid();
+    const eventId = this.getNextEventId();
     const now = new Date();
-    
+
     sheet.appendRow([
       eventId,
       eventData.userId,
@@ -27,8 +27,43 @@ const EventModel = {
       false,
       now
     ]);
-    
+
     return eventId;
+  },
+
+  /**
+   * 다음 eventId 가져오기 (순차적 정수)
+   */
+  getNextEventId: function() {
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(Config.SHEETS.EVENTS);
+
+      if (!sheet) {
+        return 1;
+      }
+
+      const lastRow = sheet.getLastRow();
+      if (lastRow < 2) {
+        // 데이터가 없으면 1부터 시작
+        return 1;
+      }
+
+      const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      let maxId = 0;
+
+      for (let i = 0; i < values.length; i++) {
+        const id = parseInt(values[i][0]);
+        if (!isNaN(id) && id > maxId) {
+          maxId = id;
+        }
+      }
+
+      return maxId + 1;
+    } catch (error) {
+      Logger.log('EventModel.getNextEventId Error: ' + error.toString());
+      return 1;
+    }
   },
   
   /**

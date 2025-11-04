@@ -42,21 +42,62 @@ const NotificationService = {
     ];
     
     notifications.forEach(notif => {
-      const notifId = NotificationModel.create(
+      NotificationModel.create(
         eventId,
         userId,
         notif.type,
         notif.message,
         notif.time
       );
-      
-      // 트리거 설정 (실제 구현 시 시간 기반 트리거 사용)
-      // this._createTimeTrigger(notif.time, notifId);
     });
+  },
+
+  /**
+   * 예정된 알림 체크 및 발송 처리
+   * (1분마다 실행되는 트리거에서 호출)
+   */
+  checkAndSendScheduledNotifications: function() {
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(Config.SHEETS.NOTIFICATIONS);
+
+      if (!sheet) {
+        Logger.log('Notifications 시트를 찾을 수 없습니다.');
+        return;
+      }
+
+      const lastRow = sheet.getLastRow();
+      if (lastRow < 2) {
+        return;
+      }
+
+      const now = new Date();
+      const values = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+
+      for (let i = 0; i < values.length; i++) {
+        const notificationId = values[i][0];
+        const scheduledTime = new Date(values[i][5]);
+        const status = values[i][7];
+
+        // status가 'Scheduled'이고 예정 시간이 현재 시간 이내인 경우
+        if (status === 'Scheduled' && scheduledTime <= now) {
+          const rowNum = i + 2;
+
+          // sentTime 업데이트
+          sheet.getRange(rowNum, 7).setValue(now);
+          // status를 'Sent'로 업데이트
+          sheet.getRange(rowNum, 8).setValue('Sent');
+
+          Logger.log(`알림 발송 처리: ${notificationId} at ${now}`);
+        }
+      }
+    } catch (error) {
+      Logger.log('checkAndSendScheduledNotifications Error: ' + error.toString());
+    }
   },
   
   /**
-   * 알림 발송
+   * 알림 발송 (시트 업데이트만 수행)
    */
   send: function(notifId) {
     const notification = NotificationModel.getById(notifId);
@@ -64,35 +105,24 @@ const NotificationService = {
       Logger.log('Notification not found: ' + notifId);
       return;
     }
-    
-    const user = UserModel.getById(notification.userId);
-    if (!user) {
-      Logger.log('User not found: ' + notification.userId);
-      return;
-    }
-    
-    // 이메일 발송
+
+    // 실제 이메일 발송은 하지 않고, Notifications 시트만 업데이트
     try {
-      MailApp.sendEmail(
-        user.email,
-        '일정 알림',
-        notification.message
-      );
-      
       NotificationModel.updateStatus(notifId, 'Sent', new Date());
+      Logger.log('알림 발송 처리 완료: ' + notifId);
     } catch (error) {
-      Logger.log('Email send error: ' + error.toString());
+      Logger.log('Notification update error: ' + error.toString());
       NotificationModel.updateStatus(notifId, 'Failed', null);
     }
   },
   
   /**
-   * 맞춤 메시지 발송
+   * 맞춤 메시지 발송 (Notifications 시트에 기록)
    */
-  sendCustomMessage: function(userId, attendanceStatus) {
+  sendCustomMessage: function(eventId, userId, attendanceStatus) {
     const user = UserModel.getById(userId);
     if (!user) return;
-    
+
     let message = '';
     switch(attendanceStatus) {
       case Config.ATTENDANCE_STATUS.ABSENT:
@@ -104,9 +134,20 @@ const NotificationService = {
       default:
         message = '도착 확인이 필요합니다.';
     }
-    
+
     try {
-      MailApp.sendEmail(user.email, '출석 확인 필요', message);
+      // Notifications 시트에 기록
+      const notifId = NotificationModel.create(
+        eventId,
+        userId,
+        Config.NOTIFICATION_TYPE.CUSTOM_MESSAGE,
+        message,
+        new Date()
+      );
+
+      // 즉시 발송된 것으로 처리
+      NotificationModel.updateStatus(notifId, 'Sent', new Date());
+      Logger.log('맞춤 메시지 발송 처리 완료: ' + notifId);
     } catch (error) {
       Logger.log('Custom message send error: ' + error.toString());
     }

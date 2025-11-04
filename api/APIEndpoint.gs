@@ -506,7 +506,8 @@ function createSampleEvent() {
       return { success: false, error: 'Events 시트 없음' };
     }
     
-    const eventId = Utilities.getUuid();
+    // 순차적 정수 eventId 생성
+    const eventId = EventModel.getNextEventId();
     const now = new Date();
     const arrivalTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
     
