@@ -62,20 +62,25 @@ const NotificationService = {
       const sheet = ss.getSheetByName(Config.SHEETS.NOTIFICATIONS);
 
       if (!sheet) {
-        Logger.log('Notifications 시트를 찾을 수 없습니다.');
+        Logger.log('❌ Notifications 시트를 찾을 수 없습니다.');
         return;
       }
 
       const lastRow = sheet.getLastRow();
       if (lastRow < 2) {
+        Logger.log('📭 예정된 알림 없음 (시트가 비어있음)');
         return;
       }
 
       const now = new Date();
       const values = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+      Logger.log(`📬 총 ${values.length}개의 알림 레코드 확인 중...`);
 
+      let sentCount = 0;
       for (let i = 0; i < values.length; i++) {
         const notificationId = values[i][0];
+        const eventId = values[i][1];
+        const type = values[i][3];
         const scheduledTime = new Date(values[i][5]);
         const status = values[i][7];
 
@@ -88,11 +93,19 @@ const NotificationService = {
           // status를 'Sent'로 업데이트
           sheet.getRange(rowNum, 8).setValue('Sent');
 
-          Logger.log(`알림 발송 처리: ${notificationId} at ${now}`);
+          sentCount++;
+          Logger.log(`🔔 알림 발송: eventId=${eventId}, type=${type}, 예정=${scheduledTime.toISOString()}`);
         }
       }
+
+      if (sentCount > 0) {
+        Logger.log(`✅ 총 ${sentCount}개 알림 발송 완료`);
+      } else {
+        Logger.log(`⏳ 발송할 알림 없음 (모두 미래 시각이거나 이미 발송됨)`);
+      }
     } catch (error) {
-      Logger.log('checkAndSendScheduledNotifications Error: ' + error.toString());
+      Logger.log('❌ checkAndSendScheduledNotifications Error: ' + error.toString());
+      Logger.log('Stack: ' + error.stack);
     }
   },
   

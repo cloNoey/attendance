@@ -180,9 +180,12 @@ const LocationService = {
    */
   _updateAttendanceByTime: function(event, now) {
     const arrivalTime = new Date(event.arrivalTime);
+    Logger.log(`⏰ 시간 기반 체크: 현재 ${now.toISOString()}, 도착예정 ${arrivalTime.toISOString()}`);
 
     // 도착시각에 상태가 Pending이면 Absent로 변경
     if (now >= arrivalTime && event.attendanceStatus === Config.ATTENDANCE_STATUS.PENDING) {
+      Logger.log(`🔴 도착시각 경과 - Absent로 변경`);
+
       EventModel.update(event.eventId, { attendanceStatus: Config.ATTENDANCE_STATUS.ABSENT });
       AttendanceModel.updateStatus(event.eventId, 'No', Config.ATTENDANCE_STATUS.ABSENT, null);
 
@@ -195,11 +198,15 @@ const LocationService = {
         now
       );
       NotificationModel.updateStatus(notifId, 'Sent', now);
+      Logger.log(`✅ 출석 상태 업데이트 및 알림 생성 완료`);
+    } else {
+      Logger.log(`⏳ 아직 도착시각 전이거나 이미 처리됨 (상태: ${event.attendanceStatus})`);
     }
 
     // 도착시각+10분에 맞춤 메시지 발송
     const tenMinAfter = new Date(arrivalTime.getTime() + 10 * 60000);
     if (now >= tenMinAfter && !event.arriveSoon) {
+      Logger.log(`📬 도착시각+10분 경과 - 맞춤 메시지 발송`);
       NotificationService.sendCustomMessage(event.eventId, event.userId, event.attendanceStatus);
     }
   },
@@ -209,12 +216,27 @@ const LocationService = {
    */
   checkAllActiveEvents: function() {
     const events = EventModel.getActiveEvents();
-    
+    const now = new Date();
+
+    Logger.log(`📋 활성 이벤트 ${events.length}개 체크 시작`);
+
     events.forEach(event => {
+      Logger.log(`\n--- 이벤트 ${event.eventId} (${event.userName}) ---`);
+      Logger.log(`도착시각: ${event.arrivalTime}, 상태: ${event.attendanceStatus}`);
+
       const user = UserModel.getById(event.userId);
+
+      // 위치 정보가 있으면 위치 기반 체크
       if (user && user.currentLat && user.currentLng) {
-        this._checkSingleEvent(event, user.currentLat, user.currentLng, new Date());
+        Logger.log(`📍 사용자 위치 있음: (${user.currentLat}, ${user.currentLng})`);
+        this._checkSingleEvent(event, user.currentLat, user.currentLng, now);
+      } else {
+        Logger.log(`⚠️ 사용자 위치 없음 - 시간 기반 체크만 수행`);
+        // 위치가 없어도 시간 기반 출석 업데이트는 수행
+        this._updateAttendanceByTime(event, now);
       }
     });
+
+    Logger.log(`\n✅ 모든 이벤트 체크 완료`);
   }
 };
