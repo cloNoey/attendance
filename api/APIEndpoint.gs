@@ -30,42 +30,44 @@ function getEventsByUser(userId) {
   Logger.log('=== getEventsByUser 웹앱 호출 ===');
   Logger.log('userId: ' + userId);
   Logger.log('타입: ' + typeof userId);
-  
+
   try {
     // 명시적으로 SpreadsheetApp 사용
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('Events');
-    
+
     if (!sheet) {
       Logger.log('❌ Events 시트 없음');
       // null 대신 빈 배열 반환
       return [];
     }
-    
+
     // 전체 데이터 가져오기
     const allData = sheet.getDataRange().getValues();
     Logger.log('전체 데이터 행 수: ' + allData.length);
-    
+
     if (allData.length <= 1) {
       Logger.log('데이터 없음 (헤더만 있음)');
       return [];
     }
-    
+
     // userId 정규화
     const searchUserId = String(userId).trim();
     Logger.log('검색할 userId: "' + searchUserId + '"');
-    
+
     // 결과 배열
     const results = [];
-    
+
     // 헤더 제외하고 순회 (i=1부터 시작)
     for (let i = 1; i < allData.length; i++) {
       const row = allData[i];
       const rowUserId = String(row[1]).trim(); // userId는 2번째 컬럼 (인덱스 1)
-      
+
+      Logger.log('행 ' + (i + 1) + ': userId = "' + rowUserId + '", eventId = ' + row[0] + ' (타입: ' + typeof row[0] + ')');
+
       if (rowUserId === searchUserId) {
         Logger.log('✅ 매칭: 행 ' + (i + 1));
-        
+
         // 객체 생성 - 명시적으로 모든 필드 지정
         const eventObj = {
           eventId: Number(row[0] || 0),
@@ -88,20 +90,22 @@ function getEventsByUser(userId) {
           arriveSoon: Boolean(row[17]),
           createdAt: row[18] ? new Date(row[18]).toISOString() : ''
         };
-        
+
+        Logger.log('생성된 이벤트 객체: ' + JSON.stringify(eventObj));
         results.push(eventObj);
       }
     }
-    
+
     Logger.log('반환할 이벤트 수: ' + results.length);
-    
+    Logger.log('반환 데이터: ' + JSON.stringify(results));
+
     // 결과 반환 - null이 아닌 배열 보장
     return results;
-    
+
   } catch (error) {
     Logger.log('❌ getEventsByUser 에러: ' + error.toString());
     Logger.log('스택: ' + error.stack);
-    
+
     // 에러 발생 시에도 빈 배열 반환 (null 방지)
     return [];
   }

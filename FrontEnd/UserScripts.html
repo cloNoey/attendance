@@ -223,20 +223,31 @@
        * 이벤트 목록 로드
        */
       loadEvents: function() {
-        if (!this.userId) return;
-        
+        if (!this.userId) {
+          console.log('❌ userId가 없습니다');
+          return;
+        }
+
+        console.log('=== loadEvents 시작 ===');
+        console.log('userId:', this.userId);
+
         CommonUtils.showLoading('eventsList');
-        
+
         google.script.run
           .withSuccessHandler((events) => {
+            console.log('✅ 이벤트 데이터 수신:', events);
+            console.log('이벤트 개수:', events ? events.length : 0);
+            console.log('이벤트 상세:', JSON.stringify(events, null, 2));
+
             this.currentEvents = events || [];
             this.displayEvents(events);
-            
+
             // 로드 후 경로 정보 업데이트
             setTimeout(() => this.updateAllRoutes(), 500);
           })
           .withFailureHandler((error) => {
-            console.error('Failed to load events:', error);
+            console.error('❌ 이벤트 로드 실패:', error);
+            console.error('에러 상세:', JSON.stringify(error, null, 2));
           })
           .getEventsByUser(this.userId);
       },
