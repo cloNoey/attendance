@@ -789,21 +789,32 @@
        * 이벤트 모달 열기
        */
       openEventModal: function(eventId, destLat, destLng) {
-        document.getElementById('eventId').value = eventId;
-        document.getElementById('destinationLat').value = destLat;
-        document.getElementById('destinationLng').value = destLng;
-        document.getElementById('eventModal').style.display = 'flex';
-        document.getElementById('routeInfo').style.display = 'none';
+        const eventIdEl = document.getElementById('eventId');
+        const destLatEl = document.getElementById('destinationLat');
+        const destLngEl = document.getElementById('destinationLng');
+        const modalEl = document.getElementById('eventModal');
+        const routeInfoEl = document.getElementById('routeInfo');
+
+        if (eventIdEl) eventIdEl.value = eventId;
+        if (destLatEl) destLatEl.value = destLat;
+        if (destLngEl) destLngEl.value = destLng;
+        if (modalEl) modalEl.style.display = 'flex';
+        if (routeInfoEl) routeInfoEl.style.display = 'none';
       },
       
       /**
        * 모달 닫기
        */
       closeModal: function() {
-        document.getElementById('eventModal').style.display = 'none';
-        document.getElementById('eventForm').reset();
-        document.getElementById('formError').textContent = '';
-        document.getElementById('routeInfo').style.display = 'none';
+        const modalEl = document.getElementById('eventModal');
+        const formEl = document.getElementById('eventForm');
+        const errorEl = document.getElementById('formError');
+        const routeInfoEl = document.getElementById('routeInfo');
+
+        if (modalEl) modalEl.style.display = 'none';
+        if (formEl) formEl.reset();
+        if (errorEl) errorEl.textContent = '';
+        if (routeInfoEl) routeInfoEl.style.display = 'none';
       },
       
       /**
