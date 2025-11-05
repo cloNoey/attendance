@@ -251,9 +251,26 @@ function updateEventDetails(data) {
     eventsSheet.getRange(eventRow, 12).setValue(travelTime);
     eventsSheet.getRange(eventRow, 13).setValue(expectedDepartureTime);
     eventsSheet.getRange(eventRow, 14).setValue(prepStartTime);
-    
+
     Logger.log('✅ 이벤트 업데이트 완료');
-    
+
+    // 알림 스케줄 생성
+    const userId = eventData[1]; // userId는 Events 시트의 2번째 컬럼
+    Logger.log(`알림 스케줄 생성 시작 - eventId: ${data.eventId}, userId: ${userId}`);
+
+    try {
+      NotificationService.scheduleNotifications(
+        data.eventId,
+        userId,
+        prepStartTime,
+        expectedDepartureTime
+      );
+      Logger.log('✅ 알림 스케줄 생성 완료');
+    } catch (notifError) {
+      Logger.log('⚠️ 알림 스케줄 생성 실패: ' + notifError.toString());
+      // 알림 생성 실패해도 이벤트 업데이트는 성공으로 처리
+    }
+
     return {
       success: true,
       travelTime: travelTime,
