@@ -27,6 +27,12 @@ function getAttendanceStatus(userId, eventId) {
  * 사용자별 이벤트 조회 - 메인 함수
  */
 function getEventsByUser(userId) {
+  const debugInfo = {
+    timestamp: new Date().toISOString(),
+    userId: userId,
+    userId_type: typeof userId
+  };
+
   Logger.log('=== getEventsByUser 웹앱 호출 ===');
   Logger.log('userId: ' + userId);
   Logger.log('타입: ' + typeof userId);
@@ -34,10 +40,16 @@ function getEventsByUser(userId) {
   try {
     // 명시적으로 SpreadsheetApp 사용
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    debugInfo.spreadsheet_id = ss.getId();
+    debugInfo.spreadsheet_name = ss.getName();
+
     const sheet = ss.getSheetByName('Events');
 
     if (!sheet) {
       Logger.log('❌ Events 시트 없음');
+      debugInfo.error = 'Events 시트를 찾을 수 없습니다';
+      debugInfo.available_sheets = ss.getSheets().map(s => s.getName()).join(', ');
+      console.error('getEventsByUser 디버그:', debugInfo);
       // null 대신 빈 배열 반환
       return [];
     }
@@ -45,15 +57,19 @@ function getEventsByUser(userId) {
     // 전체 데이터 가져오기
     const allData = sheet.getDataRange().getValues();
     Logger.log('전체 데이터 행 수: ' + allData.length);
+    debugInfo.total_rows = allData.length;
 
     if (allData.length <= 1) {
       Logger.log('데이터 없음 (헤더만 있음)');
+      debugInfo.status = 'no_data';
+      console.log('getEventsByUser 디버그:', debugInfo);
       return [];
     }
 
     // userId 정규화
     const searchUserId = String(userId).trim();
     Logger.log('검색할 userId: "' + searchUserId + '"');
+    debugInfo.search_userId = searchUserId;
 
     // 결과 배열
     const results = [];
@@ -98,6 +114,10 @@ function getEventsByUser(userId) {
 
     Logger.log('반환할 이벤트 수: ' + results.length);
     Logger.log('반환 데이터: ' + JSON.stringify(results));
+    debugInfo.result_count = results.length;
+    debugInfo.status = 'success';
+
+    console.log('getEventsByUser 디버그:', debugInfo);
 
     // 결과 반환 - null이 아닌 배열 보장
     return results;
@@ -105,6 +125,11 @@ function getEventsByUser(userId) {
   } catch (error) {
     Logger.log('❌ getEventsByUser 에러: ' + error.toString());
     Logger.log('스택: ' + error.stack);
+    debugInfo.error = error.toString();
+    debugInfo.error_stack = error.stack;
+    debugInfo.status = 'error';
+
+    console.error('getEventsByUser 디버그:', debugInfo);
 
     // 에러 발생 시에도 빈 배열 반환 (null 방지)
     return [];

@@ -349,19 +349,34 @@
 
         console.log('=== loadEvents 시작 ===');
         console.log('userId:', this.userId);
+        console.log('userId 타입:', typeof this.userId);
 
         CommonUtils.showLoading('eventsList');
 
+        console.log('🔵 getEventsByUser 호출 시작...');
+
         google.script.run
           .withSuccessHandler((events) => {
-            console.log('✅ 이벤트 데이터 수신:', events);
-            console.log('이벤트 타입:', typeof events);
-            console.log('이벤트 개수:', events ? events.length : 0);
+            console.log('✅ SUCCESS HANDLER 호출됨!');
+            console.log('  - 수신 데이터:', events);
+            console.log('  - 데이터 타입:', typeof events);
+            console.log('  - null 체크:', events === null);
+            console.log('  - undefined 체크:', events === undefined);
+            console.log('  - Array 체크:', Array.isArray(events));
+            console.log('  - 개수:', events ? events.length : 'N/A');
 
             // null/undefined 방어
             const safeEvents = events || [];
-            console.log('✅ 안전한 이벤트 배열:', safeEvents);
-            console.log('이벤트 상세:', JSON.stringify(safeEvents, null, 2));
+            console.log('✅ 안전한 배열로 변환:');
+            console.log('  - 최종 개수:', safeEvents.length);
+            console.log('  - 최종 타입:', typeof safeEvents);
+            console.log('  - 최종 Array:', Array.isArray(safeEvents));
+
+            if (safeEvents.length > 0) {
+              console.log('  - 첫 번째 이벤트:', safeEvents[0]);
+            } else {
+              console.warn('⚠️ 이벤트 없음 - Events 시트를 확인하세요');
+            }
 
             this.currentEvents = safeEvents;
             this.displayEvents(safeEvents);
@@ -370,14 +385,18 @@
             setTimeout(() => this.updateAllRoutes(), 500);
           })
           .withFailureHandler((error) => {
-            console.error('❌ 이벤트 로드 실패:', error);
-            console.error('에러 상세:', JSON.stringify(error, null, 2));
+            console.error('❌ FAILURE HANDLER 호출됨!');
+            console.error('  - 에러 객체:', error);
+            console.error('  - 에러 타입:', typeof error);
+            console.error('  - 에러 내용:', error);
 
             // 에러 시 빈 상태 표시
             this.currentEvents = [];
             this.displayEvents([]);
           })
           .getEventsByUser(this.userId);
+
+        console.log('🔵 getEventsByUser 호출 완료 (비동기)');
       },
       
       /**
