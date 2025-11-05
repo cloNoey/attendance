@@ -76,8 +76,8 @@ function periodicLocationCheck() {
     // 위치 기반 이벤트 상태 체크
     LocationService.checkAllActiveEvents();
 
-    // 예정된 알림 체크 및 발송
-    NotificationService.checkAndSendScheduledNotifications();
+    // 예정된 알림 체크 및 발송 (글로벌 함수 사용)
+    checkAndSendScheduledNotifications();
   } catch (error) {
     Logger.log('periodicLocationCheck Error: ' + error.toString());
   }

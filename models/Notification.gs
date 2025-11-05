@@ -8,9 +8,14 @@ const NotificationModel = {
    * 알림 생성
    */
   create: function(eventId, userId, type, message, scheduledTime) {
-    const sheet = SheetUtils.getSheet(Config.SHEETS.NOTIFICATIONS);
+    // 시트가 없으면 자동 생성
+    const sheet = SheetUtils.createSheetIfNotExists(
+      Config.SHEETS.NOTIFICATIONS,
+      ['notificationId', 'eventId', 'userId', 'type', 'message', 'scheduledTime', 'sentTime', 'status']
+    );
+
     const notifId = Utilities.getUuid();
-    
+
     sheet.appendRow([
       notifId,
       eventId,
@@ -21,7 +26,8 @@ const NotificationModel = {
       '',
       'Scheduled'
     ]);
-    
+
+    Logger.log(`알림 생성됨: ${notifId} (타입: ${type}, 예정시간: ${scheduledTime})`);
     return notifId;
   },
   

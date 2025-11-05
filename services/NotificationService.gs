@@ -8,48 +8,60 @@ const NotificationService = {
    * 알림 스케줄 설정
    */
   scheduleNotifications: function(eventId, userId, prepStartTime, expectedDepartureTime) {
-    const notifications = [
-      {
-        time: new Date(prepStartTime.getTime() - Config.TIME.PREP_NOTIFICATION_1 * 60000),
-        type: Config.NOTIFICATION_TYPE.PREP_10MIN,
-        message: '준비 시작 10분 전입니다.'
-      },
-      {
-        time: new Date(prepStartTime.getTime() - Config.TIME.PREP_NOTIFICATION_2 * 60000),
-        type: Config.NOTIFICATION_TYPE.PREP_5MIN,
-        message: '준비 시작 5분 전입니다.'
-      },
-      {
-        time: prepStartTime,
-        type: Config.NOTIFICATION_TYPE.PREP_START,
-        message: '준비를 시작하세요!'
-      },
-      {
-        time: new Date(expectedDepartureTime.getTime() - Config.TIME.DEPART_NOTIFICATION_1 * 60000),
-        type: Config.NOTIFICATION_TYPE.DEPART_10MIN,
-        message: '출발 10분 전입니다.'
-      },
-      {
-        time: new Date(expectedDepartureTime.getTime() - Config.TIME.DEPART_NOTIFICATION_2 * 60000),
-        type: Config.NOTIFICATION_TYPE.DEPART_5MIN,
-        message: '출발 5분 전입니다.'
-      },
-      {
-        time: expectedDepartureTime,
-        type: Config.NOTIFICATION_TYPE.DEPART_NOW,
-        message: '출발하세요!'
-      }
-    ];
-    
-    notifications.forEach(notif => {
-      NotificationModel.create(
-        eventId,
-        userId,
-        notif.type,
-        notif.message,
-        notif.time
-      );
-    });
+    try {
+      Logger.log(`알림 스케줄링 시작 - eventId: ${eventId}, userId: ${userId}`);
+      Logger.log(`준비 시작 시간: ${prepStartTime}, 출발 시간: ${expectedDepartureTime}`);
+
+      const notifications = [
+        {
+          time: new Date(prepStartTime.getTime() - Config.TIME.PREP_NOTIFICATION_1 * 60000),
+          type: Config.NOTIFICATION_TYPE.PREP_10MIN,
+          message: '준비 시작 10분 전입니다.'
+        },
+        {
+          time: new Date(prepStartTime.getTime() - Config.TIME.PREP_NOTIFICATION_2 * 60000),
+          type: Config.NOTIFICATION_TYPE.PREP_5MIN,
+          message: '준비 시작 5분 전입니다.'
+        },
+        {
+          time: prepStartTime,
+          type: Config.NOTIFICATION_TYPE.PREP_START,
+          message: '준비를 시작하세요!'
+        },
+        {
+          time: new Date(expectedDepartureTime.getTime() - Config.TIME.DEPART_NOTIFICATION_1 * 60000),
+          type: Config.NOTIFICATION_TYPE.DEPART_10MIN,
+          message: '출발 10분 전입니다.'
+        },
+        {
+          time: new Date(expectedDepartureTime.getTime() - Config.TIME.DEPART_NOTIFICATION_2 * 60000),
+          type: Config.NOTIFICATION_TYPE.DEPART_5MIN,
+          message: '출발 5분 전입니다.'
+        },
+        {
+          time: expectedDepartureTime,
+          type: Config.NOTIFICATION_TYPE.DEPART_NOW,
+          message: '출발하세요!'
+        }
+      ];
+
+      let createdCount = 0;
+      notifications.forEach(notif => {
+        const notifId = NotificationModel.create(
+          eventId,
+          userId,
+          notif.type,
+          notif.message,
+          notif.time
+        );
+        if (notifId) createdCount++;
+      });
+
+      Logger.log(`✅ 알림 ${createdCount}개 생성 완료`);
+    } catch (error) {
+      Logger.log(`❌ scheduleNotifications 에러: ${error.toString()}`);
+      throw error;
+    }
   },
 
   /**
@@ -62,17 +74,19 @@ const NotificationService = {
       const sheet = ss.getSheetByName(Config.SHEETS.NOTIFICATIONS);
 
       if (!sheet) {
-        Logger.log('Notifications 시트를 찾을 수 없습니다.');
+        Logger.log('⚠️ Notifications 시트를 찾을 수 없습니다. initializeAllSheets()를 실행하세요.');
         return;
       }
 
       const lastRow = sheet.getLastRow();
       if (lastRow < 2) {
+        Logger.log('알림 체크: 예정된 알림이 없습니다.');
         return;
       }
 
       const now = new Date();
       const values = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
+      let processedCount = 0;
 
       for (let i = 0; i < values.length; i++) {
         const notificationId = values[i][0];
@@ -88,11 +102,17 @@ const NotificationService = {
           // status를 'Sent'로 업데이트
           sheet.getRange(rowNum, 8).setValue('Sent');
 
-          Logger.log(`알림 발송 처리: ${notificationId} at ${now}`);
+          Logger.log(`✅ 알림 발송 처리: ${notificationId} (예정: ${scheduledTime}, 발송: ${now})`);
+          processedCount++;
         }
       }
+
+      if (processedCount > 0) {
+        Logger.log(`📤 총 ${processedCount}개 알림 발송 완료`);
+      }
     } catch (error) {
-      Logger.log('checkAndSendScheduledNotifications Error: ' + error.toString());
+      Logger.log('❌ checkAndSendScheduledNotifications Error: ' + error.toString());
+      Logger.log('Stack: ' + error.stack);
     }
   },
   
@@ -153,3 +173,39 @@ const NotificationService = {
     }
   }
 };
+
+/**
+ * 글로벌 래퍼 함수들 (트리거에서 직접 호출 가능)
+ */
+
+/**
+ * 예정된 알림 체크 및 발송 처리
+ * 트리거에서 직접 호출 가능
+ */
+function checkAndSendScheduledNotifications() {
+  return NotificationService.checkAndSendScheduledNotifications();
+}
+
+/**
+ * 알림 스케줄 설정
+ * 트리거에서 직접 호출 가능
+ */
+function scheduleNotifications(eventId, userId, prepStartTime, expectedDepartureTime) {
+  return NotificationService.scheduleNotifications(eventId, userId, prepStartTime, expectedDepartureTime);
+}
+
+/**
+ * 알림 발송
+ * 트리거에서 직접 호출 가능
+ */
+function sendNotification(notifId) {
+  return NotificationService.send(notifId);
+}
+
+/**
+ * 맞춤 메시지 발송
+ * 트리거에서 직접 호출 가능
+ */
+function sendCustomMessage(eventId, userId, attendanceStatus) {
+  return NotificationService.sendCustomMessage(eventId, userId, attendanceStatus);
+}
