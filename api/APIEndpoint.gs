@@ -235,12 +235,13 @@ function updateEventDetails(data) {
     }
     
     const arrivalTime = new Date(eventData[6]);
-    
+
     // 클라이언트에서 계산한 예상 시간 사용
     const travelTime = data.estimatedTravelTime || 30;
-    
-    // 시간 계산
-    const expectedDepartureTime = new Date(arrivalTime.getTime() - travelTime * 60000);
+
+    // 시간 계산: 도착시각에서 (이동시간 + 10분 버퍼)를 빼서 출발 예정 시각 계산
+    const expectedDepartureTime = new Date(arrivalTime.getTime() - (travelTime + Config.TIME.BUFFER_TIME) * 60000);
+    // 출발 예정 시각에서 준비시간을 빼서 준비시작시각 계산
     const prepStartTime = new Date(expectedDepartureTime.getTime() - data.prepTime * 60000);
     
     // 시트 업데이트

@@ -28,6 +28,7 @@ const Config = {
   
   // 시간 기준 (분)
   TIME: {
+    BUFFER_TIME: 10,  // 출발 예정 시각 계산 시 추가되는 버퍼 시간
     PREP_NOTIFICATION_1: 10,
     PREP_NOTIFICATION_2: 5,
     DEPART_NOTIFICATION_1: 10,
