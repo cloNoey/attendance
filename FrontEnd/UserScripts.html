@@ -349,23 +349,42 @@
 
         CommonUtils.showLoading('eventsList');
 
+        // 1단계: 먼저 시간 기반 출석 상태 체크
+        console.log('📋 시간 기반 출석 상태 체크 중...');
         google.script.run
-          .withSuccessHandler((events) => {
-            console.log('✅ 이벤트 데이터 수신:', events);
-            console.log('이벤트 개수:', events ? events.length : 0);
-            console.log('이벤트 상세:', JSON.stringify(events, null, 2));
+          .withSuccessHandler((result) => {
+            console.log('✅ 출석 상태 체크 완료:', result);
 
-            this.currentEvents = events || [];
-            this.displayEvents(events);
+            // 2단계: 출석 상태 체크 후 이벤트 로드
+            google.script.run
+              .withSuccessHandler((events) => {
+                console.log('✅ 이벤트 데이터 수신:', events);
+                console.log('이벤트 개수:', events ? events.length : 0);
+                console.log('이벤트 상세:', JSON.stringify(events, null, 2));
 
-            // 로드 후 경로 정보 업데이트
-            setTimeout(() => this.updateAllRoutes(), 500);
+                this.currentEvents = events || [];
+                this.displayEvents(events);
+
+                // 로드 후 경로 정보 업데이트
+                setTimeout(() => this.updateAllRoutes(), 500);
+              })
+              .withFailureHandler((error) => {
+                console.error('❌ 이벤트 로드 실패:', error);
+                console.error('에러 상세:', JSON.stringify(error, null, 2));
+              })
+              .getEventsByUser(this.userId);
           })
           .withFailureHandler((error) => {
-            console.error('❌ 이벤트 로드 실패:', error);
-            console.error('에러 상세:', JSON.stringify(error, null, 2));
+            console.error('❌ 출석 상태 체크 실패:', error);
+            // 에러가 나도 이벤트는 로드
+            google.script.run
+              .withSuccessHandler((events) => {
+                this.currentEvents = events || [];
+                this.displayEvents(events);
+              })
+              .getEventsByUser(this.userId);
           })
-          .getEventsByUser(this.userId);
+          .checkAttendanceStatus();
       },
       
       /**

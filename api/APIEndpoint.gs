@@ -4,24 +4,20 @@
  */
 
 /**
- * 사용자 출석 정보 조회
+ * 시간 기반 출석 상태 체크 (클라이언트에서 명시적으로 호출)
  */
-function getAttendanceStatus(userId, eventId) {
-  // 명시적으로 SpreadsheetApp 사용
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Attendance');
-  // 전체 데이터 가져오기
-  const allData = sheet.getDataRange().getValues();
-  Logger.log('전체 데이터 행 수: ' + allData.length); 
-    
-  if (allData.length <= 1) {
-    Logger.log('데이터 없음 (헤더만 있음)');
-    return [];
+function checkAttendanceStatus() {
+  try {
+    Logger.log('=== checkAttendanceStatus 호출 ===');
+    const now = new Date();
+    LocationService.checkAllActiveEvents();
+    Logger.log('✅ checkAttendanceStatus 완료: ' + now.toISOString());
+    return { success: true, timestamp: now.toISOString() };
+  } catch (error) {
+    Logger.log('❌ checkAttendanceStatus 에러: ' + error.toString());
+    return { success: false, error: error.message };
   }
-  // userId 정규화
-  const searchUserId = String(userId).trim();
 }
-
 
 /**
  * 사용자별 이벤트 조회 - 메인 함수
@@ -32,11 +28,6 @@ function getEventsByUser(userId) {
   Logger.log('타입: ' + typeof userId);
 
   try {
-    // 시간 기반 출석 상태 업데이트 (새로고침 시 실행)
-    Logger.log('📋 시간 기반 출석 상태 체크 실행...');
-    LocationService.checkAllActiveEvents();
-    Logger.log('✅ 시간 기반 출석 상태 체크 완료');
-
     // 명시적으로 SpreadsheetApp 사용
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('Events');
