@@ -32,6 +32,11 @@ function getEventsByUser(userId) {
   Logger.log('타입: ' + typeof userId);
 
   try {
+    // 시간 기반 출석 상태 업데이트 (새로고침 시 실행)
+    Logger.log('📋 시간 기반 출석 상태 체크 실행...');
+    LocationService.checkAllActiveEvents();
+    Logger.log('✅ 시간 기반 출석 상태 체크 완료');
+
     // 명시적으로 SpreadsheetApp 사용
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('Events');
