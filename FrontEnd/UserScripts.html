@@ -355,11 +355,16 @@
         google.script.run
           .withSuccessHandler((events) => {
             console.log('✅ 이벤트 데이터 수신:', events);
+            console.log('이벤트 타입:', typeof events);
             console.log('이벤트 개수:', events ? events.length : 0);
-            console.log('이벤트 상세:', JSON.stringify(events, null, 2));
 
-            this.currentEvents = events || [];
-            this.displayEvents(events);
+            // null/undefined 방어
+            const safeEvents = events || [];
+            console.log('✅ 안전한 이벤트 배열:', safeEvents);
+            console.log('이벤트 상세:', JSON.stringify(safeEvents, null, 2));
+
+            this.currentEvents = safeEvents;
+            this.displayEvents(safeEvents);
 
             // 로드 후 경로 정보 업데이트
             setTimeout(() => this.updateAllRoutes(), 500);
@@ -367,6 +372,10 @@
           .withFailureHandler((error) => {
             console.error('❌ 이벤트 로드 실패:', error);
             console.error('에러 상세:', JSON.stringify(error, null, 2));
+
+            // 에러 시 빈 상태 표시
+            this.currentEvents = [];
+            this.displayEvents([]);
           })
           .getEventsByUser(this.userId);
       },
